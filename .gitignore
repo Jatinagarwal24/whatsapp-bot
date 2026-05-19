@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Environment variables (contains your SECRET keys - NEVER push this!)
+.env
+
+# WhatsApp session data
+.wwebjs_auth/
+.wwebjs_cache/
+
+# Google credentials JSON file
+*.json
+!package.json
+!package-lock.json
+
+# CSV sample data (not needed on server)
+*.csv
