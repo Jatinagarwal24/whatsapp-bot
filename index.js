@@ -49,6 +49,18 @@ client.once('qr', async (qr) => {
     });
 });
 
+client.on('authenticated', () => {
+    console.log('\n🔐 Authentication successful! Saving session...');
+});
+
+client.on('auth_failure', (msg) => {
+    console.error('\n❌ Authentication failed:', msg);
+});
+
+client.on('loading_screen', (percent, message) => {
+    console.log(`🔄 Loading... ${percent}% | ${message}`);
+});
+
 client.on('ready', async () => {
     console.log('✅ Client is ready! Connected to WhatsApp.\n');
 
