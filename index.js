@@ -10,11 +10,32 @@ const client = new Client({
     authStrategy: new LocalAuth()
 });
 
-client.on('qr', (qr) => {
+const readline = require('readline');
+
+client.once('qr', async (qr) => {
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+    });
+
     console.log('\n======================================================');
-    console.log('📱 Scan this QR code with your WhatsApp app to log in:');
-    console.log('======================================================\n');
-    qrcode.generate(qr, { small: true });
+    rl.question('📱 Enter your WhatsApp phone number (with country code, e.g., 919876543210): ', async (phoneNumber) => {
+        try {
+            console.log('\n⏳ Requesting pairing code from WhatsApp...');
+            let code = await client.requestPairingCode(phoneNumber.trim());
+            console.log('\n======================================================');
+            console.log(`🔑 YOUR PAIRING CODE IS: ${code}`);
+            console.log('Open WhatsApp on your phone:');
+            console.log('1. Go to Settings > Linked Devices > Link a Device');
+            console.log('2. Tap "Link with phone number instead" at the bottom');
+            console.log('3. Enter the code above.');
+            console.log('======================================================\n');
+        } catch (err) {
+            console.error('❌ Error generating pairing code:', err.message);
+            console.log('Make sure you entered the phone number with country code (no + sign).');
+        }
+        rl.close();
+    });
 });
 
 client.on('ready', async () => {
