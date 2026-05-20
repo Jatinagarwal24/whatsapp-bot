@@ -9,6 +9,7 @@ const cron = require('node-cron');
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
+        dumpio: true, // This will print everything the hidden browser is doing
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -16,9 +17,14 @@ const client = new Client({
             '--disable-accelerated-2d-canvas',
             '--no-first-run',
             '--no-zygote',
-            '--disable-gpu'
+            '--disable-gpu',
+            '--log-level=3'
         ]
     }
+});
+
+client.on('disconnected', (reason) => {
+    console.error('\n⚠️ Client was logged out or disconnected. Reason:', reason);
 });
 
 const readline = require('readline');
