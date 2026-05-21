@@ -67,7 +67,7 @@ client.on('loading_screen', (percent, message) => {
     console.log(`🔄 Loading... ${percent}% | ${message}`);
 });
 
-client.on('ready', async () => {
+client.once('ready', async () => {
     console.log('✅ Client is ready! Connected to WhatsApp.\n');
 
     // Run immediately on startup
