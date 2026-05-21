@@ -70,17 +70,25 @@ client.on('loading_screen', (percent, message) => {
 client.once('ready', async () => {
     console.log('✅ Client is ready! Connected to WhatsApp.\n');
 
-    // Run immediately on startup
+    // Run immediately on startup (safe — sent flags prevent duplicates)
     await checkAndSendMessages();
 
-    // Then schedule to run every day at 8:00 AM
+    // Schedule main daily run at 8:00 AM
     cron.schedule('0 8 * * *', async () => {
         console.log('\n⏰ Scheduled 8:00 AM run triggered!');
         await checkAndSendMessages();
     });
 
-    console.log('\n🕐 Bot is now running 24/7. Next check at 8:00 AM tomorrow.');
-    console.log('   Keep this terminal open (or deploy to cloud). Press Ctrl+C to stop.\n');
+    // Check every 30 minutes for newly added entries
+    cron.schedule('*/30 * * * *', async () => {
+        console.log('\n🔍 Checking for new entries...');
+        await checkAndSendMessages();
+    });
+
+    console.log('\n🕐 Bot is now running 24/7.');
+    console.log('   📋 Main check: Daily at 8:00 AM');
+    console.log('   🔍 New entry check: Every 30 minutes');
+    console.log('   Press Ctrl+C to stop.\n');
 });
 
 // Helper: Parse DD-MM-YYYY date string into a Date object
@@ -140,6 +148,16 @@ async function checkAndSendMessages() {
             await sheet.loadHeaderRow();
         }
 
+        // Ensure tracking columns exist in the sheet
+        const headers = sheet.headerValues || [];
+        if (!headers.includes('BirthdaySentOn') || !headers.includes('RefillSentOn')) {
+            const newHeaders = [...headers];
+            if (!headers.includes('BirthdaySentOn')) newHeaders.push('BirthdaySentOn');
+            if (!headers.includes('RefillSentOn')) newHeaders.push('RefillSentOn');
+            await sheet.setHeaderRow(newHeaders);
+            console.log('📌 Added tracking columns: BirthdaySentOn, RefillSentOn');
+        }
+
         const rows = await sheet.getRows();
         console.log(`📊 Found ${rows.length} customer rows.`);
 
@@ -147,7 +165,8 @@ async function checkAndSendMessages() {
         const currentDay = today.getDate();
         const currentMonth = today.getMonth() + 1;
         const currentYear = today.getFullYear();
-        console.log(`📅 Today: ${currentDay}-${currentMonth}-${currentYear}\n`);
+        const todayStr = `${String(currentDay).padStart(2, '0')}-${String(currentMonth).padStart(2, '0')}-${currentYear}`;
+        console.log(`📅 Today: ${todayStr}\n`);
 
         // Track phones that already got birthday messages (avoid duplicates)
         const birthdaySent = new Set();
@@ -165,13 +184,23 @@ async function checkAndSendMessages() {
             const chatId = `${phone}@c.us`;
             console.log(`👤 ${name} | Phone: ${phone} | DOB: "${dobString}" | Refill: "${refillDateString}" | Medicines: "${medicineString}"`);
 
+            const birthdaySentOn = (row.get('BirthdaySentOn') || '').trim();
+            const refillSentOn = (row.get('RefillSentOn') || '').trim();
+
             // 1. Birthday Check (only month + day, ignore year)
             if (dobString && !birthdaySent.has(phone)) {
                 const dob = parseDate(dobString);
                 if (dob && dob.month === currentMonth && dob.day === currentDay) {
-                    await sendBirthdayMessage(name, chatId);
-                    birthdaySent.add(phone);
-                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    if (birthdaySentOn === todayStr) {
+                        console.log(`   ⏭️ Birthday message already sent today, skipping.`);
+                    } else {
+                        await sendBirthdayMessage(name, chatId);
+                        birthdaySent.add(phone);
+                        row.set('BirthdaySentOn', todayStr);
+                        await row.save();
+                        console.log(`   📝 Marked birthday as sent for today.`);
+                        await new Promise(resolve => setTimeout(resolve, 3000));
+                    }
                 }
             }
 
@@ -179,10 +208,16 @@ async function checkAndSendMessages() {
             if (refillDateString && medicineString) {
                 const refill = parseDate(refillDateString);
                 if (refill && refill.year === currentYear && refill.month === currentMonth && refill.day === currentDay) {
-                    // Split comma-separated medicines into a clean list
-                    const medicines = medicineString.split(',').map(m => m.trim()).filter(m => m);
-                    await sendReminderMessage(name, chatId, medicines);
-                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    if (refillSentOn === todayStr) {
+                        console.log(`   ⏭️ Refill reminder already sent today, skipping.`);
+                    } else {
+                        const medicines = medicineString.split(',').map(m => m.trim()).filter(m => m);
+                        await sendReminderMessage(name, chatId, medicines);
+                        row.set('RefillSentOn', todayStr);
+                        await row.save();
+                        console.log(`   📝 Marked refill as sent for today.`);
+                        await new Promise(resolve => setTimeout(resolve, 3000));
+                    }
                 }
             }
         }
