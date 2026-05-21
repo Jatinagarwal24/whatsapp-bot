@@ -223,4 +223,17 @@ async function sendReminderMessage(name, chatId, medicines) {
 }
 
 console.log("🚀 Starting Mukesh Medical Hall WhatsApp Bot...");
-client.initialize();
+client.initialize().then(() => {
+    // Start a 45 second timer. If it doesn't say ready by then, take a screenshot!
+    setTimeout(async () => {
+        try {
+            if (client.pupPage) {
+                console.log('\n📸 [DEBUG] Taking a screenshot of the hidden browser to see what it is stuck on...');
+                await client.pupPage.screenshot({ path: 'debug.png' });
+                console.log('📸 [DEBUG] Screenshot saved as "debug.png" on the server!');
+            }
+        } catch (e) {
+            console.error('Screenshot failed:', e);
+        }
+    }, 45000);
+});
