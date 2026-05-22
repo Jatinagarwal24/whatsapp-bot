@@ -1,3 +1,6 @@
+// Set timezone to IST so cron jobs and date checks use Indian time
+process.env.TZ = 'Asia/Kolkata';
+
 require('dotenv').config();
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
@@ -79,8 +82,8 @@ client.once('ready', async () => {
         await checkAndSendMessages();
     });
 
-    // Check every 30 minutes for newly added entries
-    cron.schedule('*/30 * * * *', async () => {
+    // Check every 30 minutes for newly added entries (only after 8 AM)
+    cron.schedule('*/30 8-23 * * *', async () => {
         console.log('\n🔍 Checking for new entries...');
         await checkAndSendMessages();
     });
