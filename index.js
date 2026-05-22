@@ -70,7 +70,9 @@ client.on('loading_screen', (percent, message) => {
     console.log(`🔄 Loading... ${percent}% | ${message}`);
 });
 
+let isBotReady = false;
 client.once('ready', async () => {
+    isBotReady = true;
     console.log('✅ Client is ready! Connected to WhatsApp.\n');
 
     // Run immediately on startup (safe — sent flags prevent duplicates)
@@ -262,10 +264,22 @@ async function sendReminderMessage(name, chatId, medicines) {
 
 console.log("🚀 Starting Mukesh Medical Hall WhatsApp Bot...");
 client.initialize().then(() => {
+    // Repeatedly try to dismiss any blocking popups (like "What's new on WhatsApp Web")
+    const popupDismissInterval = setInterval(async () => {
+        if (!isBotReady && client.pupPage) {
+            try {
+                // Press Escape to close any open modals
+                await client.pupPage.keyboard.press('Escape');
+            } catch (e) { }
+        } else if (isBotReady) {
+            clearInterval(popupDismissInterval);
+        }
+    }, 5000);
+
     // Start a 45 second timer. If it doesn't say ready by then, take a screenshot!
     setTimeout(async () => {
         try {
-            if (client.pupPage) {
+            if (!isBotReady && client.pupPage) {
                 console.log('\n📸 [DEBUG] Taking a screenshot of the hidden browser to see what it is stuck on...');
                 await client.pupPage.screenshot({ path: 'debug.png' });
                 console.log('📸 [DEBUG] Screenshot saved as "debug.png" on the server!');
